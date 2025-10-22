@@ -510,13 +510,33 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     todos[index].text = editor.innerHTML;
                 });
 
+                // ペーストイベント - プレーンテキストのみ許可
                 editor.addEventListener('paste', (e) => {
                     e.preventDefault();
-                    const text = e.clipboardData.getData('text/plain');
-                    document.execCommand('insertText', false, text);
+                    if (e.clipboardData) {
+                        const text = e.clipboardData.getData('text/plain');
+                        if (text) {
+                            // execCommand('insertText')が失敗した場合は直接挿入
+                            const success = document.execCommand('insertText', false, text);
+                            if (!success) {
+                                const selection = window.getSelection();
+                                if (selection && selection.rangeCount > 0) {
+                                    const range = selection.getRangeAt(0);
+                                    range.deleteContents();
+                                    const textNode = document.createTextNode(text);
+                                    range.insertNode(textNode);
+                                    // カーソルを新しいテキストの後に移動
+                                    range.setStartAfter(textNode);
+                                    range.setEndAfter(textNode);
+                                    selection.removeAllRanges();
+                                    selection.addRange(range);
+                                }
+                            }
+                        }
+                    }
                 });
 
-                // Tabキーでインデント挿入
+                // キーボードイベント（Tab、Backspace）
                 editor.addEventListener('keydown', (e) => {
                     if (e.key === 'Tab') {
                         e.preventDefault();
