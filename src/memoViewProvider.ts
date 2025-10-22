@@ -268,7 +268,7 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
     }
 
     private _getHtmlForWebview(webview: vscode.Webview) {
-        return `<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -418,7 +418,7 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         <button class="save-btn" id="saveBtn">Save</button>
     </div>
 
-    <script>
+        <script>
         const vscode = acquireVsCodeApi();
         let currentFilePath = '';
         let todos = [];
@@ -430,7 +430,7 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
 
         // 追加ボタン
         document.getElementById('addBtn').addEventListener('click', () => {
-            todos.push({ text: '', completed: false });
+            todos.push({ text: '', completed: false, pinned: false });
             renderTodos();
         });
 
@@ -448,31 +448,53 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
             const container = document.getElementById('todoContainer');
             container.innerHTML = '';
 
-            todos.forEach((todo, index) => {
+            // ピン止めされたTODOを上部に表示
+            const sortedTodos = [...todos].sort((a, b) => {
+                if (a.pinned === b.pinned) return 0;
+                return a.pinned ? -1 : 1;
+            });
+
+            sortedTodos.forEach((todo, sortedIndex) => {
+                // todos配列のindexを取得（ピン止めで並び替えられているため）
+                const index = todos.indexOf(todo);
                 const todoItem = document.createElement('div');
                 todoItem.className = 'todo-item' + (todo.completed ? ' completed' : '');
 
-                // ヘッダー部分 (チェックボックスとDeleteボタン)
+                // ヘッダー部分 ([Pin] [Done] [Delete])
                 const todoHeader = document.createElement('div');
                 todoHeader.className = 'todo-header';
 
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = todo.completed;
-                checkbox.addEventListener('change', (e) => {
-                    todos[index].completed = e.target.checked;
+                // Pinトグル
+                const pinBtn = document.createElement('button');
+                pinBtn.textContent = todo.pinned ? '📌 Pin' : 'Pin';
+                pinBtn.title = 'ピン止め';
+                pinBtn.style.fontWeight = todo.pinned ? 'bold' : 'normal';
+                pinBtn.addEventListener('click', () => {
+                    todos[index].pinned = !todos[index].pinned;
                     renderTodos();
                 });
+                todoHeader.appendChild(pinBtn);
 
+                // Doneトグル（ボタン化・アイコン表示）
+                const doneBtn = document.createElement('button');
+                doneBtn.textContent = todo.completed ? '✔ Done' : 'Done';
+                doneBtn.title = '完了';
+                doneBtn.style.fontWeight = todo.completed ? 'bold' : 'normal';
+                doneBtn.addEventListener('click', () => {
+                    todos[index].completed = !todos[index].completed;
+                    renderTodos();
+                });
+                todoHeader.appendChild(doneBtn);
+
+                // Deleteボタン
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-btn';
                 deleteBtn.textContent = 'Delete';
+                deleteBtn.title = '削除';
                 deleteBtn.addEventListener('click', () => {
                     todos.splice(index, 1);
                     renderTodos();
                 });
-
-                todoHeader.appendChild(checkbox);
                 todoHeader.appendChild(deleteBtn);
 
                 // コンテンツ部分 (ツールバーとエディタ)
@@ -595,7 +617,8 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     document.getElementById('filePath').textContent = currentFilePath;
                     break;
                 case 'todosLoaded':
-                    todos = message.todos;
+                    // 既存TODOにpinnedプロパティがなければ追加
+                    todos = (message.todos || []).map(todo => ({ ...todo, pinned: todo.pinned ?? false }));
                     renderTodos();
                     break;
             }
