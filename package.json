@@ -1,0 +1,57 @@
+{
+  "name": "vsc-memo",
+  "displayName": "VSC Memo",
+  "description": "A simple memo extension with TODO list functionality",
+  "version": "0.0.1",
+  "publisher": "moisture2626",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onView:vscMemoView"
+  ],
+  "main": "./out/extension.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/moisture2626/vsc_memo.git"
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "vsc-memo-container",
+          "title": "Memo",
+          "icon": "resources/memo-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "vsc-memo-container": [
+        {
+          "type": "webview",
+          "id": "vscMemoView",
+          "name": "TODO List",
+          "icon": "resources/memo-icon.svg"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "18.x",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  }
+}
