@@ -36,7 +36,7 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     await this._selectFile();
                     break;
                 case 'saveToFile':
-                    await this._saveToFile(data.filePath, data.todos);
+                    await this._saveToFile(data.filePath, data.todos, data.freeNote);
                     break;
                 case 'loadFromFile':
                     await this._loadFromFile(data.filePath);
@@ -116,11 +116,22 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         try {
             if (fs.existsSync(filePath)) {
                 const content = fs.readFileSync(filePath, 'utf8');
-                const todos = this._parseMdToTodos(content);
+
+                // Noteセクションを分離
+                let freeNote = '';
+                let todosContent = content;
+                const noteMatch = content.match(/^## Note\s*\n([\s\S]*)$/m);
+                if (noteMatch) {
+                    freeNote = noteMatch[1].trim();
+                    todosContent = content.replace(/^## Note\s*\n[\s\S]*$/m, '').trim();
+                }
+
+                const todos = this._parseMdToTodos(todosContent);
                 if (this._view) {
                     this._view.webview.postMessage({
                         type: 'todosLoaded',
-                        todos: todos
+                        todos: todos,
+                        freeNote: freeNote
                     });
                 }
                 // ファイルを設定に保存
@@ -131,7 +142,7 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         }
     }
 
-    private async _saveToFile(filePath: string, todos: any[]) {
+    private async _saveToFile(filePath: string, todos: any[], freeNote?: string) {
         try {
             let targetPath = filePath;
 
@@ -160,7 +171,12 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                 }
             }
 
-            const mdContent = this._todosToMd(todos);
+            let mdContent = this._todosToMd(todos);
+
+            // Noteセクションを追加
+            if (freeNote !== undefined) {
+                mdContent += '\n## Note\n\n' + freeNote + '\n';
+            }
 
             // ディレクトリが存在しない場合は作成
             const dir = path.dirname(targetPath);
@@ -402,9 +418,40 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
             background-color: var(--vscode-button-background);
             margin-top: 15px;
         }
+        .free-note {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: var(--vscode-editor-background);
+            padding: 10px;
+            border-top: 1px solid var(--vscode-panel-border);
+            z-index: 1000;
+            box-sizing: border-box;
+        }
+        .free-note h3 {
+            margin: 0 0 8px 0;
+        }
+        .free-note textarea {
+            width: 100%;
+            background-color: var(--vscode-input-background);
+            color: var(--vscode-input-foreground);
+            border: 1px solid var(--vscode-input-border);
+            border-radius: 2px;
+            padding: 8px;
+            font-family: var(--vscode-font-family);
+            font-size: var(--vscode-font-size);
+            resize: vertical;
+            box-sizing: border-box;
+        }
+        .content-wrapper {
+            padding-bottom: 180px;
+        }
     </style>
 </head>
 <body>
+    <div class="content-wrapper">
+    <button class="save-btn" id="saveBtn">Save</button>
     <div class="file-selector">
         <h3>File Selection</h3>
         <button id="selectFileBtn">Select MD File</button>
@@ -415,13 +462,19 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         <h3>TODO List</h3>
         <div id="todoContainer"></div>
         <button class="add-btn" id="addBtn">Add TODO</button>
-        <button class="save-btn" id="saveBtn">Save</button>
+    </div>
     </div>
 
-        <script>
+    <div class="free-note">
+        <h3>Note</h3>
+        <textarea id="freeNote" rows="4"></textarea>
+    </div>
+
+    <script>
         const vscode = acquireVsCodeApi();
-        let currentFilePath = '';
-        let todos = [];
+    let currentFilePath = '';
+    let todos = [];
+    let freeNote = '';
 
         // ファイル選択ボタン
         document.getElementById('selectFileBtn').addEventListener('click', () => {
@@ -436,10 +489,12 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
 
         // 保存ボタン
         document.getElementById('saveBtn').addEventListener('click', () => {
+            freeNote = document.getElementById('freeNote').value;
             vscode.postMessage({
                 type: 'saveToFile',
                 filePath: currentFilePath,
-                todos: todos
+                todos: todos,
+                freeNote: freeNote
             });
         });
 
@@ -620,6 +675,10 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     // 既存TODOにpinnedプロパティがなければ追加
                     todos = (message.todos || []).map(todo => ({ ...todo, pinned: todo.pinned ?? false }));
                     renderTodos();
+                    // 自由記述欄の内容も受信できる場合は反映
+                    if (message.freeNote !== undefined) {
+                        document.getElementById('freeNote').value = message.freeNote;
+                    }
                     break;
             }
         });
