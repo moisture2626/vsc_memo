@@ -313,25 +313,35 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         }
         .todo-item {
             display: flex;
-            align-items: flex-start;
+            flex-direction: column;
             margin: 8px 0;
             padding: 8px;
             background-color: var(--vscode-editor-background);
             border-radius: 3px;
         }
-        .todo-item input[type="checkbox"] {
-            margin-right: 10px;
-            margin-top: 6px;
+        .todo-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            gap: 8px;
+        }
+        .todo-header input[type="checkbox"] {
             cursor: pointer;
             flex-shrink: 0;
         }
+        .todo-header .delete-btn {
+            margin-left: auto;
+        }
+        .todo-content {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
         .todo-editor {
-            flex: 1;
             background-color: var(--vscode-input-background);
             color: var(--vscode-input-foreground);
             border: 1px solid var(--vscode-input-border);
             padding: 8px;
-            margin-right: 10px;
             border-radius: 2px;
             min-height: 28px;
             font-family: var(--vscode-font-family);
@@ -367,7 +377,6 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         .toolbar {
             display: flex;
             gap: 4px;
-            margin-bottom: 4px;
             padding: 4px;
             background-color: var(--vscode-editor-background);
             border-radius: 2px;
@@ -443,6 +452,10 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                 const todoItem = document.createElement('div');
                 todoItem.className = 'todo-item' + (todo.completed ? ' completed' : '');
 
+                // ヘッダー部分 (チェックボックスとDeleteボタン)
+                const todoHeader = document.createElement('div');
+                todoHeader.className = 'todo-header';
+
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
                 checkbox.checked = todo.completed;
@@ -451,10 +464,20 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     renderTodos();
                 });
 
-                // エディタコンテナ
-                const editorContainer = document.createElement('div');
-                editorContainer.style.flex = '1';
-                editorContainer.style.marginRight = '10px';
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.addEventListener('click', () => {
+                    todos.splice(index, 1);
+                    renderTodos();
+                });
+
+                todoHeader.appendChild(checkbox);
+                todoHeader.appendChild(deleteBtn);
+
+                // コンテンツ部分 (ツールバーとエディタ)
+                const todoContent = document.createElement('div');
+                todoContent.className = 'todo-content';
 
                 // ツールバー
                 const toolbar = document.createElement('div');
@@ -534,20 +557,11 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                     }
                 });
 
-                editorContainer.appendChild(toolbar);
-                editorContainer.appendChild(editor);
+                todoContent.appendChild(toolbar);
+                todoContent.appendChild(editor);
 
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-btn';
-                deleteBtn.textContent = 'Delete';
-                deleteBtn.addEventListener('click', () => {
-                    todos.splice(index, 1);
-                    renderTodos();
-                });
-
-                todoItem.appendChild(checkbox);
-                todoItem.appendChild(editorContainer);
-                todoItem.appendChild(deleteBtn);
+                todoItem.appendChild(todoHeader);
+                todoItem.appendChild(todoContent);
                 container.appendChild(todoItem);
             });
         }
