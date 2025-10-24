@@ -210,6 +210,9 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                 md += `   ${lines[i]}\n`;
             }
 
+            // pin状態をコメントとして保存
+            md += `   <!-- pinned:${todo.pinned ? 'true' : 'false'} -->\n`;
+
             // HTMLコンテンツをコメントとして保存（リッチテキスト情報を保持）
             if (todo.text && todo.text !== text) {
                 const encodedHtml = Buffer.from(todo.text).toString('base64');
@@ -241,6 +244,13 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
         let htmlContent: string = '';
 
         for (const line of lines) {
+            // pinnedコメントからpin状態を復元
+            const pinMatch = line.match(/<!--\s*pinned:(true|false)\s*-->/);
+            if (pinMatch && currentTodo) {
+                currentTodo.pinned = pinMatch[1] === 'true';
+                continue;
+            }
+
             // HTMLコメントからリッチテキストを復元
             const htmlMatch = line.match(/<!--\s*html:([A-Za-z0-9+/=]+)\s*-->/);
             if (htmlMatch && currentTodo) {
@@ -263,7 +273,8 @@ export class MemoViewProvider implements vscode.WebviewViewProvider {
                 // 新しいTODOを開始
                 currentTodo = {
                     text: match[2].trim(),
-                    completed: match[1].toLowerCase() === 'x'
+                    completed: match[1].toLowerCase() === 'x',
+                    pinned: false
                 };
                 htmlContent = '';
             } else if (currentTodo && line.match(/^\s{3,}/) && !line.includes('<!--')) {
